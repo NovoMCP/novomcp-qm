@@ -1,0 +1,26 @@
+# GPU variant — adds the ALCHEMI conformer path (engine="alchemi") on top of the
+# base novomcp-qm image (which carries the xtb/CREST QM stack). Build the base
+# first, then this:
+#
+#   docker build -t novomcp-qm .
+#   docker build -f Dockerfile.gpu -t novomcp-qm:gpu .
+#   docker run --gpus all -p 8031:8031 novomcp-qm:gpu
+#
+# Requires an NVIDIA GPU on the host with driver >= 580 (CUDA 13) and the NVIDIA
+# Container Toolkit. Without a GPU, engine="alchemi" falls back to CREST/RDKit.
+FROM novomcp-qm:latest
+
+USER root
+
+# ALCHEMI Toolkit (CUDA 13 stack): pulls a CUDA-13 build of torch + bundled CUDA
+# libraries + mace-torch. The base image has no torch, so there's no version
+# clash (the torchvision conflict only bites when layering onto an image that
+# already ships torch).
+RUN pip install --no-cache-dir "nvalchemi-toolkit[cu13]" mace-torch \
+      --extra-index-url https://pypi.nvidia.com
+
+# Eager mode — the toolkit's host-side auto neighbor-list method can't run inside
+# torch.compile, so the conformer engine runs the ALCHEMI path eagerly.
+ENV TORCHDYNAMO_DISABLE=1
+
+# Inherits the base image's CMD.
