@@ -55,7 +55,7 @@ Calculate internal strain energy of a docked ligand pose. Strain = E(docked_pose
 ```
 the NovoMCP engine (tools.py)
   → _call_service("novomcp-qm", "/api/qm-calculate", {...})
-  → novomcp-qm.internal.ashymoss-d55ab909.eastus.azurecontainerapps.io:8031
+  → novomcp-qm:8031  (the address the engine is configured with)
 ```
 
 ### Request flow
