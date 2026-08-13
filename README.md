@@ -27,15 +27,18 @@ Backends: **xTB** (GFN2), **CREST** (iMTD-GC conformer sampling), **xtb4stda/std
 
 ## Run
 
+Pull the published image and run it — no build required:
+
 ```bash
-docker build -t novomcp-qm .
-docker run -p 8031:8031 novomcp-qm
+docker run -p 8031:8031 ghcr.io/novomcp/novomcp-qm:latest
 
 curl -s localhost:8031/health
 curl -s -X POST localhost:8031/api/conformer-search \
   -H 'Content-Type: application/json' \
   -d '{"smiles":"CC(C)CC(=O)O","max_conformers":8}'
 ```
+
+Or build from source: `docker build -t novomcp-qm . && docker run -p 8031:8031 novomcp-qm`.
 
 GPU conformer path: `docker build -f Dockerfile.gpu -t novomcp-qm:gpu . && docker run --gpus all -p 8031:8031 novomcp-qm:gpu` — full guide in [`GPU.md`](./GPU.md).
 
