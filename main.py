@@ -508,7 +508,7 @@ async def conformer_search(req: ConformerRequest, x_api_key: Optional[str] = Hea
         ))
 
         if req.engine == "alchemi" and alchemi_conformers.is_available():
-            method = "ALCHEMI-MACE-MP-0"
+            method = "ALCHEMI-MACE-MPA-0"
         else:
             method = "CREST" if crest.is_available() else "RDKit-ETKDG"
         return {

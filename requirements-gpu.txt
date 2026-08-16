@@ -1,8 +1,9 @@
 # Extra dependencies for the ALCHEMI conformer path (run_conformer_search engine="alchemi").
 # Install on top of the base image / a fresh env with a CUDA-13 GPU (driver >= 580):
 #
-#   pip install "nvalchemi-toolkit[cu13]" mace-torch --extra-index-url https://pypi.nvidia.com
+#   pip install "nvalchemi-toolkit[cu13]" "mace-torch>=0.3.10" --extra-index-url https://pypi.nvidia.com
 #
 # Pulls a CUDA-13 build of torch + bundled CUDA libraries. See GPU.md.
+# mace-torch>=0.3.10 is required for the MIT-licensed MACE-MPA-0 potential.
 nvalchemi-toolkit[cu13]
-mace-torch
+mace-torch>=0.3.10

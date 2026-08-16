@@ -15,8 +15,9 @@ USER root
 # ALCHEMI Toolkit (CUDA 13 stack): pulls a CUDA-13 build of torch + bundled CUDA
 # libraries + mace-torch. The base image has no torch, so there's no version
 # clash (the torchvision conflict only bites when layering onto an image that
-# already ships torch).
-RUN pip install --no-cache-dir "nvalchemi-toolkit[cu13]" mace-torch \
+# already ships torch). mace-torch>=0.3.10 is required for the MIT-licensed
+# MACE-MPA-0 potential.
+RUN pip install --no-cache-dir "nvalchemi-toolkit[cu13]" "mace-torch>=0.3.10" \
       --extra-index-url https://pypi.nvidia.com
 
 # Eager mode — the toolkit's host-side auto neighbor-list method can't run inside

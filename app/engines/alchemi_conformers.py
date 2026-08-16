@@ -1,6 +1,6 @@
 """
 ALCHEMI conformer engine — RDKit ETKDG generation + NVIDIA ALCHEMI Toolkit
-batched MLIP (MACE-MP-0) relaxation + energy ranking, on GPU.
+batched MLIP (MACE-MPA-0) relaxation + energy ranking, on GPU.
 
 engine="alchemi": generate a diverse ensemble with ETKDG, relax the *whole*
 ensemble in one batched FIRE pass on the GPU, then rank/deduplicate by MLIP
@@ -47,9 +47,9 @@ def _get_model():
     if _model is None:
         from nvalchemi.models.mace import MACEWrapper
         from mace.calculators.foundations_models import mace_mp
-        raw = mace_mp(model="small", device="cuda", default_dtype="float32").models[0]
+        raw = mace_mp(model="medium-mpa-0", device="cuda", default_dtype="float32").models[0]
         _model = MACEWrapper(raw).to("cuda").eval()
-        logger.info("ALCHEMI MACE-MP-0 model loaded on GPU")
+        logger.info("ALCHEMI MACE-MPA-0 model loaded on GPU")
     return _model
 
 
@@ -141,7 +141,7 @@ async def search_conformers_alchemi(
     max_conformers: int = 50,
     quick: bool = False,
 ) -> ConformerResult:
-    """ETKDG ensemble → batched MACE-MP-0 FIRE relaxation on GPU → energy ranking.
+    """ETKDG ensemble → batched MACE-MPA-0 FIRE relaxation on GPU → energy ranking.
 
     `xyz_content` is ignored (the ensemble is generated from SMILES via ETKDG).
     Returns the same ConformerResult shape as the CREST engine.
@@ -203,5 +203,5 @@ async def search_conformers_alchemi(
                     if len(conformers) >= 2 else 0.0)
     return ConformerResult(
         success=True, smiles=smiles, conformers=conformers, n_conformers=len(conformers),
-        energy_range_kcal=energy_range, wall_time_seconds=round(wall, 1), method="ALCHEMI-MACE-MP-0",
+        energy_range_kcal=energy_range, wall_time_seconds=round(wall, 1), method="ALCHEMI-MACE-MPA-0",
     )
