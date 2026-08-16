@@ -23,7 +23,7 @@ Backends: **xTB** (GFN2), **CREST** (iMTD-GC conformer sampling), **xtb4stda/std
 `run_conformer_search` / `/api/conformer-search` takes an `engine`:
 
 - **`crest`** (default) — CREST + GFN2-xTB metadynamics sampling.
-- **`alchemi`** — RDKit ETKDG generation + **whole-ensemble relaxation in one batched GPU pass** via the [NVIDIA ALCHEMI Toolkit](https://github.com/NVIDIA/nvalchemi-toolkit) (FIRE + MACE-MP-0), ranked by MLIP energy. Faster than CREST; better energies than the MMFF fallback. Requires the GPU image + a GPU (see [`GPU.md`](./GPU.md)); otherwise falls back to CREST. The result's `method` field reports which engine ran.
+- **`alchemi`** — RDKit ETKDG generation + **whole-ensemble relaxation in one batched GPU pass** via the [NVIDIA ALCHEMI Toolkit](https://github.com/NVIDIA/nvalchemi-toolkit) (FIRE + MACE-MPA-0, the MIT-licensed foundation potential), ranked by MLIP energy. Faster than CREST; better energies than the MMFF fallback. Requires the GPU image + a GPU (see [`GPU.md`](./GPU.md)); otherwise falls back to CREST. The result's `method` field reports which engine ran.
 
 ## Run
 

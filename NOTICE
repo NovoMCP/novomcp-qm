@@ -1,0 +1,23 @@
+novomcp-qm
+Copyright NovoMCP
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party components
+======================
+
+ALCHEMI conformer path (GPU, engine="alchemi")
+----------------------------------------------
+The ALCHEMI conformer path uses the NVIDIA ALCHEMI Toolkit (Apache-2.0,
+https://github.com/NVIDIA/nvalchemi-toolkit).
+
+The interatomic potential is MACE-MPA-0 (MIT,
+https://github.com/ACEsuit/mace-foundations), via mace-torch (MIT). The
+Toolkit's Apache-2.0 does not extend to the potential, which carries its own
+MIT license.
+
+CPU QM engines (xtb / CREST)
+----------------------------
+The default CPU conformer/QM path uses xtb and CREST (GFN-xTB semiempirical
+quantum chemistry), which are distributed under the LGPL-3.0 license
+(https://github.com/grimme-lab/xtb, https://github.com/crest-lab/crest).

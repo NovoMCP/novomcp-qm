@@ -4,7 +4,7 @@
 optional **ALCHEMI GPU path** (`engine="alchemi"`) instead generates a diverse
 ensemble with RDKit ETKDG and relaxes the **whole ensemble in one batched pass on
 the GPU** using the [NVIDIA ALCHEMI Toolkit](https://github.com/NVIDIA/nvalchemi-toolkit)
-(FIRE + MACE-MP-0), then ranks/deduplicates by MLIP energy.
+(FIRE + MACE-MPA-0, the MIT-licensed foundation potential), then ranks/deduplicates by MLIP energy.
 
 - **Faster** than CREST (no xTB metadynamics), and **better energies/geometries**
   than the CREST→RDKit-MMFF fallback (a real MLIP vs MMFF).
@@ -35,7 +35,7 @@ docker build -f Dockerfile.gpu -t novomcp-qm:gpu .  # + ALCHEMI toolkit
 docker run --gpus all -p 8031:8031 novomcp-qm:gpu
 ```
 
-First `engine="alchemi"` request downloads the MACE-MP-0 weights and warms the
+First `engine="alchemi"` request downloads the MACE-MPA-0 weights and warms the
 model (a minute or two) — subsequent calls are fast.
 
 ## Verify
@@ -46,7 +46,7 @@ curl -s -X POST localhost:8031/api/conformer-search \
   -d '{"smiles":"CC(C)CC(=O)O","max_conformers":8,"engine":"alchemi"}'
 ```
 
-A working GPU path returns `"method": "ALCHEMI-MACE-MP-0"` and a ranked, Boltzmann-
+A working GPU path returns `"method": "ALCHEMI-MACE-MPA-0"` and a ranked, Boltzmann-
 weighted ensemble (populations sum to ~1.0). If you instead see `CREST-GFN2` or
 `RDKit-ETKDG-MMFF`, the GPU/toolkit wasn't visible — check `nvidia-smi` inside the
 container (`docker run --gpus all novomcp-qm:gpu nvidia-smi`).
@@ -59,6 +59,8 @@ container (`docker run --gpus all novomcp-qm:gpu nvidia-smi`).
 - **Eager mode.** The toolkit's host-side auto neighbor-list selection can't run
   inside `torch.compile`, so the conformer path runs eager (`TORCHDYNAMO_DISABLE=1`,
   set in the image). Still GPU-batched.
-- **Potential.** The ALCHEMI path uses MACE-MP-0; its absolute energies differ
-  from GFN2-xTB, but conformer *ranking* (relative energies) is what matters.
+- **Potential.** The ALCHEMI path uses MACE-MPA-0 (MIT-licensed); its absolute
+  energies differ from GFN2-xTB, but conformer *ranking* (relative energies) is
+  what matters. MPA-0 is a medium-size model — more accurate, and heavier, than
+  the previous small model.
 - **Neutral, closed-shell only** for the ALCHEMI path.
