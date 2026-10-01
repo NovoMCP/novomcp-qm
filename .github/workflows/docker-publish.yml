@@ -33,10 +33,15 @@ jobs:
             type=raw,value=latest
             type=sha
 
-      - name: Build and push
+      # CI runners are amd64 and can't compile the arm64 GPU path, so the
+      # published :latest is amd64-only — pin the platform explicitly. The
+      # arm64 (GB10/Spark) image is built on a DGX Spark and published to the
+      # :spark tag out-of-band; this workflow must never publish :spark.
+      - name: Build and push (amd64)
         uses: docker/build-push-action@v6
         with:
           context: .
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
