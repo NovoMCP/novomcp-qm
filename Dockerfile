@@ -40,21 +40,27 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
 # ---- xtb4stda + stda (sTDA excited states: predict_frontier_orbitals / run_excited_states) ----
 # No conda-forge or aarch64 binary exists for either tool.
 # amd64: grimme-lab release binaries (unchanged, proven).
-# arm64: compile from source (stda = CMake/Fortran; xtb4stda = Makefile/Fortran).
-#   NOTE: this arm64 source build is drafted from the upstream build docs and is
-#   VALIDATED ON A DGX SPARK before this branch merges (can't build arm64 in CI).
+# arm64: compile from source with meson + openblas (MKL is x86-only). Both tools
+#   are plain Fortran and build cleanly on aarch64 — VALIDATED ON A DGX SPARK
+#   (formaldehyde S1 n->pi* 4.33 eV / 286 nm, end-to-end through run_excited_states).
+#   Three packaging gotchas, all handled here: (1) stda's binary is named `std2`,
+#   install it as `stda` (the name the service calls); (2) stda dyn-links the meson
+#   libcint.so subproject -> copy it onto the lib path + ldconfig; (3) xtb4stda
+#   resolves its params via XTB4STDAHOME (set below), not ~/$HOME.
 RUN if [ "$TARGETARCH" = "arm64" ]; then \
       git clone --depth 1 https://github.com/grimme-lab/stda.git /tmp/stda && \
-      cd /tmp/stda && meson setup build --buildtype=release -Dla_backend=openblas -Dfortran_args=-fallow-argument-mismatch && ninja -C build && \
-      cp "$(find build -name stda -type f -executable | head -1)" /usr/local/bin/stda && chmod +x /usr/local/bin/stda && \
+      cd /tmp/stda && meson setup build --buildtype=release -Dla_backend=openblas "-Dfortran_args=-std=legacy -w -fallow-argument-mismatch" && ninja -C build && \
+      cp "$(find build -name std2 -type f -executable | head -1)" /usr/local/bin/stda && chmod +x /usr/local/bin/stda && \
+      cp "$(find build -name 'libcint.so*' -type f | head -1)" /usr/local/lib/ && ldconfig && \
       git clone --depth 1 https://github.com/grimme-lab/xtb4stda.git /tmp/xtb4stda && \
-      cd /tmp/xtb4stda && meson setup build --buildtype=release -Dla_backend=openblas -Dfortran_args=-fallow-argument-mismatch && ninja -C build && cp "$(find build -name xtb4stda -type f -executable | head -1)" /usr/local/bin/xtb4stda && \
-      chmod +x /usr/local/bin/xtb4stda && rm -rf /tmp/stda /tmp/xtb4stda ; \
+      cd /tmp/xtb4stda && meson setup build --buildtype=release -Dla_backend=openblas "-Dfortran_args=-std=legacy -w -fallow-argument-mismatch" && ninja -C build && \
+      cp "$(find build -name xtb4stda -type f -executable | head -1)" /usr/local/bin/xtb4stda && chmod +x /usr/local/bin/xtb4stda && \
+      rm -rf /tmp/stda /tmp/xtb4stda ; \
     else \
       wget -q "https://github.com/grimme-lab/xtb4stda/releases/download/v1.0/xtb4stda" -O /usr/local/bin/xtb4stda && \
       wget -q "https://github.com/grimme-lab/xtb4stda/releases/download/v1.0/stda_v1.6.1" -O /usr/local/bin/stda && \
       chmod +x /usr/local/bin/xtb4stda /usr/local/bin/stda ; \
-    fi || echo "WARN: sTDA/frontier-orbital tools unavailable on arm64 (build failed)"
+    fi
 
 # sTDA parameter files (architecture-independent — always fetched)
 RUN mkdir -p /opt/xtb4stda-params && \
@@ -71,6 +77,10 @@ ENV PATH="/opt/xtb/bin:${PATH}"
 ENV XTBHOME="/opt/xtb"
 ENV OMP_NUM_THREADS=4
 ENV OMP_STACKSIZE=1G
+# sTDA: xtb4stda finds its parameter files via XTB4STDAHOME (it does not expand
+# ~/$HOME); stda loads the libcint.so copied onto the lib path above.
+ENV XTB4STDAHOME="/opt/xtb4stda-params"
+ENV LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
 
 # Python deps
 COPY requirements.txt .
