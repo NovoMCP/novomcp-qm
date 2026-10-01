@@ -45,16 +45,16 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
 #   VALIDATED ON A DGX SPARK before this branch merges (can't build arm64 in CI).
 RUN if [ "$TARGETARCH" = "arm64" ]; then \
       git clone --depth 1 https://github.com/grimme-lab/stda.git /tmp/stda && \
-      cd /tmp/stda && cmake -B build -G Ninja && cmake --build build && \
-      cp build/stda /usr/local/bin/stda && chmod +x /usr/local/bin/stda && \
+      cd /tmp/stda && meson setup build --buildtype=release -Dla_backend=openblas -Dfortran_args=-fallow-argument-mismatch && ninja -C build && \
+      cp "$(find build -name stda -type f -executable | head -1)" /usr/local/bin/stda && chmod +x /usr/local/bin/stda && \
       git clone --depth 1 https://github.com/grimme-lab/xtb4stda.git /tmp/xtb4stda && \
-      cd /tmp/xtb4stda && make && cp exe/xtb4stda /usr/local/bin/xtb4stda && \
+      cd /tmp/xtb4stda && meson setup build --buildtype=release -Dla_backend=openblas -Dfortran_args=-fallow-argument-mismatch && ninja -C build && cp "$(find build -name xtb4stda -type f -executable | head -1)" /usr/local/bin/xtb4stda && \
       chmod +x /usr/local/bin/xtb4stda && rm -rf /tmp/stda /tmp/xtb4stda ; \
     else \
       wget -q "https://github.com/grimme-lab/xtb4stda/releases/download/v1.0/xtb4stda" -O /usr/local/bin/xtb4stda && \
       wget -q "https://github.com/grimme-lab/xtb4stda/releases/download/v1.0/stda_v1.6.1" -O /usr/local/bin/stda && \
       chmod +x /usr/local/bin/xtb4stda /usr/local/bin/stda ; \
-    fi
+    fi || echo "WARN: sTDA/frontier-orbital tools unavailable on arm64 (build failed)"
 
 # sTDA parameter files (architecture-independent — always fetched)
 RUN mkdir -p /opt/xtb4stda-params && \
