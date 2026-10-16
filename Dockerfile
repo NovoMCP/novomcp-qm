@@ -34,7 +34,6 @@ RUN apt-get update && apt-get install -y \
 RUN if [ "$TARGETARCH" = "arm64" ]; then \
       curl -Ls https://micro.mamba.pm/api/micromamba/linux-aarch64/latest | tar -xj -C /usr/local bin/micromamba && \
       /usr/local/bin/micromamba create -y -p /opt/conda-qm -c conda-forge crest=3.0.2 && \
-      /usr/local/bin/micromamba clean -afy && \
       ln -sf /opt/conda-qm/bin/crest /usr/local/bin/crest && \
       /usr/local/bin/micromamba create -y -p /opt/xtb-toolchain -c conda-forge \
         "gfortran_linux-aarch64=13" "gcc_linux-aarch64=13" meson ninja pkg-config \
@@ -54,6 +53,7 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
       cp param_*.txt .param_gfnff.xtb /opt/xtb/share/xtb/ && \
       for l in $(LD_LIBRARY_PATH=$T/lib ldd /opt/xtb/bin/xtb | awk '/xtb-toolchain/ {print $3}'); do cp -L "$l" /opt/xtb/lib/; done && \
       cd / && rm -rf /tmp/xtb-src /opt/xtb-toolchain && \
+      /usr/local/bin/micromamba clean -afy && \
       ! ldd /opt/xtb/bin/xtb | grep -E "not found|xtb-toolchain" && \
       /opt/xtb/bin/xtb --version | grep -q "6.7.1" ; \
     else \
