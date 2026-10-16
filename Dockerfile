@@ -21,7 +21,9 @@ RUN apt-get update && apt-get install -y \
 # arm64: no release binary exists.
 #   - CREST 3.0.2 from conda-forge (micromamba). Its internal GFN2 is correct on
 #     GB10 (conformer energies agree with x86 xtb).
-#   - xtb 6.7.1 compiled FROM SOURCE at -O2. The conda-forge linux-aarch64 xtb
+#   - xtb 6.7.1 compiled FROM SOURCE at -O2 with conda-forge gfortran 13 (Debian
+#     bookworm's gfortran 12 can't compile xtb 6.7.1's gfnff_eg.f90). Only the
+#     runtime libs it needs are kept, in /opt/xtb/lib (rpath). The conda-forge linux-aarch64 xtb
 #     (6.6.1 and 6.7.1) and any -O3 build compute WRONG GFN1/GFN2 analytic
 #     gradients on aarch64 (benzene dE/dx 0.0153 vs numerical 0.0913), so
 #     optimizations climb uphill into broken geometries while still reporting
@@ -34,16 +36,26 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
       /usr/local/bin/micromamba create -y -p /opt/conda-qm -c conda-forge crest=3.0.2 && \
       /usr/local/bin/micromamba clean -afy && \
       ln -sf /opt/conda-qm/bin/crest /usr/local/bin/crest && \
+      /usr/local/bin/micromamba create -y -p /opt/xtb-toolchain -c conda-forge \
+        "gfortran_linux-aarch64=13" "gcc_linux-aarch64=13" meson ninja pkg-config \
+        libopenblas "liblapack=*=*openblas" && \
+      T=/opt/xtb-toolchain && \
+      export PATH=$T/bin:$PATH PKG_CONFIG_PATH=$T/lib/pkgconfig LIBRARY_PATH=$T/lib CPATH=$T/include \
+             FC=$T/bin/aarch64-conda-linux-gnu-gfortran CC=$T/bin/aarch64-conda-linux-gnu-gcc && \
       git clone --depth 1 --branch v6.7.1 https://github.com/grimme-lab/xtb.git /tmp/xtb-src && \
       cd /tmp/xtb-src && \
       sed -i 's/"("f7.2"%)"/"(",f7.2,"%)"/' src/optimizer.f90 && \
       grep -q '"(",f7.2,"%)"' src/optimizer.f90 && \
-      meson setup build --buildtype=release -Doptimization=2 -Dlapack=openblas -Ddefault_library=static && \
+      meson setup build --buildtype=release -Doptimization=2 -Dlapack=netlib -Ddefault_library=static \
+        -Dfortran_link_args=-Wl,-rpath,/opt/xtb/lib -Dc_link_args=-Wl,-rpath,/opt/xtb/lib && \
       ninja -C build xtb && \
-      mkdir -p /opt/xtb/bin /opt/xtb/share/xtb && \
+      mkdir -p /opt/xtb/bin /opt/xtb/lib /opt/xtb/share/xtb && \
       cp build/xtb /opt/xtb/bin/xtb && chmod +x /opt/xtb/bin/xtb && \
       cp param_*.txt .param_gfnff.xtb /opt/xtb/share/xtb/ && \
-      cd / && rm -rf /tmp/xtb-src ; \
+      for l in $(LD_LIBRARY_PATH=$T/lib ldd /opt/xtb/bin/xtb | awk '/xtb-toolchain/ {print $3}'); do cp -L "$l" /opt/xtb/lib/; done && \
+      cd / && rm -rf /tmp/xtb-src /opt/xtb-toolchain && \
+      ! ldd /opt/xtb/bin/xtb | grep -E "not found|xtb-toolchain" && \
+      /opt/xtb/bin/xtb --version | grep -q "6.7.1" ; \
     else \
       mkdir -p /opt/xtb && \
       wget -q "https://github.com/grimme-lab/xtb/releases/download/v6.7.1/xtb-6.7.1-linux-x86_64.tar.xz" -O /tmp/xtb.tar.xz && \
