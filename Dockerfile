@@ -18,16 +18,44 @@ RUN apt-get update && apt-get install -y \
 
 # ---- xtb 6.7.1 + CREST 3.0.2 -------------------------------------------------
 # amd64: grimme-lab release binaries into /opt/xtb + /usr/local/bin (unchanged).
-# arm64: no release binary exists -> conda-forge (micromamba), symlinked so the
-#        app's XTBHOME=/opt/xtb + PATH assumptions still hold.
+# arm64: no release binary exists.
+#   - CREST 3.0.2 from conda-forge (micromamba). Its internal GFN2 is correct on
+#     GB10 (conformer energies agree with x86 xtb).
+#   - xtb 6.7.1 compiled FROM SOURCE at -O2 with conda-forge gfortran 13 (Debian
+#     bookworm's gfortran 12 can't compile xtb 6.7.1's gfnff_eg.f90). Only the
+#     runtime libs it needs are kept, in /opt/xtb/lib (rpath). The conda-forge linux-aarch64 xtb
+#     (6.6.1 and 6.7.1) and any -O3 build compute WRONG GFN1/GFN2 analytic
+#     gradients on aarch64 (benzene dE/dx 0.0153 vs numerical 0.0913), so
+#     optimizations climb uphill into broken geometries while still reporting
+#     "converged". Same source at -O2 matches x86 xtb to ~1e-6 Eh (validated on a
+#     DGX Spark GB10). Also patches an upstream format string in
+#     src/optimizer.f90 that newer libgfortran rejects at runtime.
+#   Both are linked so the app's XTBHOME=/opt/xtb + PATH assumptions still hold.
 RUN if [ "$TARGETARCH" = "arm64" ]; then \
       curl -Ls https://micro.mamba.pm/api/micromamba/linux-aarch64/latest | tar -xj -C /usr/local bin/micromamba && \
-      /usr/local/bin/micromamba create -y -p /opt/conda-qm -c conda-forge xtb=6.7.1 crest=3.0.2 && \
-      /usr/local/bin/micromamba clean -afy && \
-      mkdir -p /opt/xtb/bin /opt/xtb/share && \
-      ln -sf /opt/conda-qm/bin/xtb /opt/xtb/bin/xtb && \
+      /usr/local/bin/micromamba create -y -p /opt/conda-qm -c conda-forge crest=3.0.2 && \
       ln -sf /opt/conda-qm/bin/crest /usr/local/bin/crest && \
-      ln -sf /opt/conda-qm/share/xtb /opt/xtb/share/xtb ; \
+      /usr/local/bin/micromamba create -y -p /opt/xtb-toolchain -c conda-forge \
+        "gfortran_linux-aarch64=13" "gcc_linux-aarch64=13" meson ninja pkg-config \
+        libopenblas "liblapack=*=*openblas" && \
+      T=/opt/xtb-toolchain && \
+      export PATH=$T/bin:$PATH PKG_CONFIG_PATH=$T/lib/pkgconfig LIBRARY_PATH=$T/lib CPATH=$T/include \
+             FC=$T/bin/aarch64-conda-linux-gnu-gfortran CC=$T/bin/aarch64-conda-linux-gnu-gcc && \
+      git clone --depth 1 --branch v6.7.1 https://github.com/grimme-lab/xtb.git /tmp/xtb-src && \
+      cd /tmp/xtb-src && \
+      sed -i 's/"("f7.2"%)"/"(",f7.2,"%)"/' src/optimizer.f90 && \
+      grep -q '"(",f7.2,"%)"' src/optimizer.f90 && \
+      meson setup build --buildtype=release -Doptimization=2 -Dlapack=netlib -Ddefault_library=static \
+        -Dfortran_link_args=-Wl,-rpath,/opt/xtb/lib -Dc_link_args=-Wl,-rpath,/opt/xtb/lib && \
+      ninja -C build xtb && \
+      mkdir -p /opt/xtb/bin /opt/xtb/lib /opt/xtb/share/xtb && \
+      cp build/xtb /opt/xtb/bin/xtb && chmod +x /opt/xtb/bin/xtb && \
+      cp param_*.txt .param_gfnff.xtb /opt/xtb/share/xtb/ && \
+      for l in $(LD_LIBRARY_PATH=$T/lib ldd /opt/xtb/bin/xtb | awk '/xtb-toolchain/ {print $3}'); do cp -L "$l" /opt/xtb/lib/; done && \
+      cd / && rm -rf /tmp/xtb-src /opt/xtb-toolchain && \
+      /usr/local/bin/micromamba clean -afy && \
+      ! ldd /opt/xtb/bin/xtb | grep -E "not found|xtb-toolchain" && \
+      /opt/xtb/bin/xtb --version | grep -q "6.7.1" ; \
     else \
       mkdir -p /opt/xtb && \
       wget -q "https://github.com/grimme-lab/xtb/releases/download/v6.7.1/xtb-6.7.1-linux-x86_64.tar.xz" -O /tmp/xtb.tar.xz && \
@@ -75,6 +103,7 @@ RUN mkdir -p /opt/xtb4stda-params && \
 
 ENV PATH="/opt/xtb/bin:${PATH}"
 ENV XTBHOME="/opt/xtb"
+ENV XTBPATH="/opt/xtb/share/xtb"
 ENV OMP_NUM_THREADS=4
 ENV OMP_STACKSIZE=1G
 # sTDA: xtb4stda finds its parameter files via XTB4STDAHOME (it does not expand
