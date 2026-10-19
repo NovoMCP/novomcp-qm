@@ -10,7 +10,7 @@ import json
 import os
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Header
@@ -197,7 +197,7 @@ async def update_job_status(job_id: str, status: str, progress: dict):
             "job_id": job_id,
             "status": status,
             "progress": json.dumps(progress),
-            "last_updated": datetime.utcnow().isoformat(),
+            "last_updated": datetime.now(timezone.utc).isoformat(),
         })
         await redis_client.expire(key, 86400)  # 24 hours
         logger.info(f"Job {job_id}: {progress.get('percentage', 0)}% - {progress.get('message', '')}")
@@ -210,7 +210,7 @@ async def complete_job(job_id: str, result: dict):
     if not redis_client:
         return
     try:
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         key = f"novomcp:job:{job_id}"
         await redis_client.hset(key, mapping={
             "job_id": job_id,
@@ -233,7 +233,7 @@ async def fail_job(job_id: str, error: str):
     if not redis_client:
         return
     try:
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         key = f"novomcp:job:{job_id}"
         await redis_client.hset(key, mapping={
             "job_id": job_id,
